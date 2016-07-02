@@ -28,7 +28,7 @@
         {
                 dispatch_async(dispatch_get_main_queue(), ^{
                 [urlData writeToFile:self.filePath  atomically:YES];
-                NSLog(@"File Saved !");
+                NSLog(@"File Saved !  %@",self.filePath );
                 CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
                 [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
             });
@@ -134,7 +134,8 @@
 
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location {
     
-    //NSFileManager *fileManager = [NSFileManager defaultManager];
+    /*
+    NSFileManager *fileManager = [NSFileManager defaultManager];
     //[fileManager removeItemAtPath:targetURL.path error: nil];
     //[fileManager createFileAtPath:targetURL.path contents:[fileManager contentsAtPath:[location path]] attributes:nil];
     
@@ -143,5 +144,7 @@
     NSString *documentsDirectory = [paths objectAtIndex:0]; // Get documents folder
     NSString *filePath = [documentsDirectory stringByAppendingPathComponent:[targetURL.path stringByAppendingString:self.fileType]];
     BOOL Success = [[NSFileManager defaultManager] createFileAtPath:filePath contents:nil attributes:nil];
+     
+     */
 }
 @end
