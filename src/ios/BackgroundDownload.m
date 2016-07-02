@@ -1,21 +1,3 @@
-/*
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements. See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership. The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License. You may obtain a copy of the License at
- 
- http://www.apache.org/licenses/LICENSE-2.0
- 
- Unless required by applicable law or agreed to in writing,
- software distributed under the License is distributed on an
- "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- KIND, either express or implied. See the License for the
- specific language governing permissions and limitations
- under the License.
- */
 
 #import "BackgroundDownload.h"
 
@@ -30,25 +12,60 @@
 {
     self.downloadUri = [command.arguments objectAtIndex:0];
     self.targetFile = [command.arguments objectAtIndex:1];
-    
     self.callbackId = command.callbackId;
+    self.fileType = @"MP4"; //default
     
-    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:self.downloadUri]];
+    NSURLRequest    *req  = [NSURLRequest requestWithURL:[NSURL URLWithString:self.downloadUri]];
+    NSURLConnection *conn = [NSURLConnection connectionWithRequest:req delegate:self];
+    [conn start];
     
-    ignoreNextError = NO;
-    
-    session = [self backgroundSession];
-    
-    [session getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
-        if (downloadTasks.count > 0) {
-            downloadTask = downloadTasks[0];
-        } else {
-            downloadTask = [session downloadTaskWithRequest:request];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"Downloading Started");
+        NSString *urlToDownload = self.downloadUri;
+        NSURL  *url = [NSURL URLWithString:urlToDownload];
+        NSData *urlData = [NSData dataWithContentsOfURL:url];
+        if ( urlData )
+        {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                [urlData writeToFile:self.filePath  atomically:YES];
+                NSLog(@"File Saved !");
+                CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+            });
         }
-        [downloadTask resume];
-    }];
+    });
+}
+
+
+- (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
+    
+
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Network Timeout"
+                                                    message:@"Unable to play media file."
+                                                   delegate:nil
+                                          cancelButtonTitle:@"OK"
+                                          otherButtonTitles:nil];
+    [alert show];
     
 }
+
+
+- (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response {
+    
+    if ([[response MIMEType] rangeOfString:@"video/mp4" options:NSCaseInsensitiveSearch].location == NSNotFound)
+    {
+        self.fileType = @".MP3";  //get mime
+    }
+    else
+    {
+        self.fileType = @".MP4";
+    }
+    
+    NSArray       *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString  *documentsDirectory = [paths objectAtIndex:0];
+    self.filePath = [NSString stringWithFormat:@"%@/%@", documentsDirectory, [self.targetFile stringByAppendingString:self.fileType]];
+}
+
 
 - (NSURLSession *)backgroundSession
 {
@@ -116,11 +133,15 @@
 }
 
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location {
-    NSFileManager *fileManager = [NSFileManager defaultManager];
+    
+    //NSFileManager *fileManager = [NSFileManager defaultManager];
+    //[fileManager removeItemAtPath:targetURL.path error: nil];
+    //[fileManager createFileAtPath:targetURL.path contents:[fileManager contentsAtPath:[location path]] attributes:nil];
     
     NSURL *targetURL = [NSURL URLWithString:_targetFile];
-    
-    [fileManager removeItemAtPath:targetURL.path error: nil];
-    [fileManager createFileAtPath:targetURL.path contents:[fileManager contentsAtPath:[location path]] attributes:nil];
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0]; // Get documents folder
+    NSString *filePath = [documentsDirectory stringByAppendingPathComponent:[targetURL.path stringByAppendingString:self.fileType]];
+    BOOL Success = [[NSFileManager defaultManager] createFileAtPath:filePath contents:nil attributes:nil];
 }
 @end
